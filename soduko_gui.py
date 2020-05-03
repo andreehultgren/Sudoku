@@ -23,28 +23,39 @@ class Game(object):
         
         #Initiate pygame
         pygame.init()
+        
+        #Configure pygame according to the config file.
+        self.configure_window()
+        self.configure_clock()
+        self.configure_fonts()
+
+        #Generate the soduko-board
+        self.generate_board()
+
+        #Finally, some descriptive parameters
+        self.win            =   False
+        self.running        =   True
+
+    def configure_fonts(self):
+        font_big            =   int(config['cell_height']*0.8)
+        font_small          =   int(config['cell_height']*0.4)
+        self.font           =   pygame.font.SysFont('comicsansms', font_big)
+        self.font_initial   =   pygame.font.SysFont('comicsansms', font_big, True)
+        self.font_predicted =   pygame.font.SysFont('comicsansms', font_small)
+
+    def configure_clock(self):
+        self.clock          =   pygame.time.Clock()
+
+    def configure_window(self):
         pygame.display.set_caption(config['window_name'])
         
-        #Set up pygame parameters
-        self.view   =   pygame.display.set_mode((9*(config['cell_width' ]+config['cell_padding'])+3*config['cell_padding'],
-                                                 9*(config['cell_height']+config['cell_padding'])+3*config['cell_padding']))
-        self.font           =   pygame.font.SysFont('comicsansms', int(config['cell_height']*0.8))
-        self.font_initial   =   pygame.font.SysFont('comicsansms', int(config['cell_height']*0.8), True)
-        self.font_predicted =   pygame.font.SysFont('comicsansms', int(config['cell_height']*0.4))
-
-        #Set up some variables
-        self.solution       =   self.generate_board()
-        self.cell_board     =   self.gamify(self.solution)
-        self.running        =   True 
-        self.check_mouse()
-        self.clock = pygame.time.Clock()
-        self.win            =   False
-        self.pressed        =   False
-        
+        window_width        =   9*config['cell_width' ]+14*config['cell_padding']
+        window_height       =   9*config['cell_height']+14*config['cell_padding']
+        self.view           =   pygame.display.set_mode((window_width, window_height))
 
     def check_mouse(self):
         self.pos        =   pygame.mouse.get_pos()
-        self.pressed,_,_=  pygame.mouse.get_pressed()
+        self.pressed,_,_=   pygame.mouse.get_pressed()
 
     def draw_board(self):
         for row in self.cell_board:
@@ -54,21 +65,15 @@ class Game(object):
     def draw_background(self):
         self.view.fill(self.config['background'])
         
-    def gamify(self, solution):
-        #Generate cell structure:
-        cell_board   =   [[0 for _ in range(9)] for _ in range(9)]
-        for i,row in enumerate(solution):
-            for j,number in enumerate(row):
-                if random() > self.config['difficulty']:
-                    value   =   0
-                else:
-                    value   =   number
-                cell_board[i][j]    =   Cell(self,i,j,value)
-        return cell_board
-
     def generate_board(self):
-        base  = 3
+        #Generate a solution of the board. Convert to cell structure.
+        solution            =   self.generate_board_full()
+        self.cell_board     =   [[Cell(self,i,j,value) if random()>config['difficulty'] else Cell(self,i,j,0) for j,value in enumerate(row)] for i,row in enumerate(solution)]
 
+    def generate_board_full(self):
+        #Not my code. Taken from https://stackoverflow.com/questions/45471152/how-to-create-a-sudoku-puzzle-in-python/#answer-56581709
+
+        base  = 3
         # pattern for a baseline valid solution
         def pattern(r,c): return (base*(r%base)+r//base+c)%(base**2)
 
@@ -85,31 +90,20 @@ class Game(object):
         return board
     
     def check_keyboard(self):
+        #Keyboard commands that applies to the whole board.
         pressed = pygame.key.get_pressed()
-        if pressed[pygame.K_c]:
-            for i,row in enumerate(self.cell_board):
-                for j,cell in enumerate(row):
-                    if cell.value != self.solution[i][j] and cell.value != 0:
-                        cell.correct    =   False 
-                    elif cell.value == self.solution[i][j]:
-                        cell.correct    =   True
-                    else:
-                        cell.correct    =   None 
         if pressed[pygame.K_SPACE]:
             self.solve(self.cell_board)
             self.check_for_win()
-            
     
-    def check_for_win(self):      
+    def check_for_win(self):
         validity    =   self.check_validity(self.cell_board)
         all_entry   =   True
         for row in self.cell_board:
             for cell in row:
-                if cell.value ==0: all_entry   =   False
+                if cell.value is 0: all_entry   =   False
         self.win = validity*all_entry
 
-
-        
     def check_validity(self, board):
         combinations    =   []
         squares         =   [[0,1,2], [3,4,5], [6,7,8]]
@@ -123,20 +117,18 @@ class Game(object):
         #Add squares
         for row in squares:
             for col in squares:
-                combination     =   []
-                for a in row:
-                    for b in col:
-                        combination.append(a*9+b)
-                combinations.append(combination)
+                combinations.append([a*9+b for b in col for a in row])
         
         #Check combinations
         for combination in combinations:
+            #Count the amount of occurences of each number
             counter =   [0 for _ in range(9)]
             for position in combination:
                 row, col    =   position//9, position%9
                 value       =   board[row][col].value
-                if value !=0:
+                if value is not 0:
                     counter[value-1]  += 1
+            #Check if it exceeds one
             for count in counter:
                 if count >1:
                     valid=False
@@ -144,12 +136,17 @@ class Game(object):
             
 
     def solve(self, board, position=0):
+        #At each step, update the board
         self.draw_background()
         self.draw_board()
         pygame.display.update()
+
+        #Set the framerate to alot.
         self.clock.tick(10000)
+
         row, col    =   position//9, position%9
         sol_found  =   False
+
         #Check the if we are at the end
         if position>=81:
             return True, board
@@ -252,27 +249,27 @@ class Cell(object):
         return pygame.draw.rect(self.parent.view, color, (x_pos, y_pos, self.parent.config['cell_width'], self.parent.config['cell_height']))
 
     def listen_for_number(self):
-        for event in pygame.event.get():#pygame.time.get_ticks-self.parent.last_pressed>1000:
-            if event.type==pygame.KEYDOWN:
-                if event.key==pygame.K_1 or event.key==pygame.K_KP1:    self.predict(1)
-                if event.key==pygame.K_2 or event.key==pygame.K_KP2:    self.predict(2)
-                if event.key==pygame.K_3 or event.key==pygame.K_KP3:    self.predict(3)
-                if event.key==pygame.K_4 or event.key==pygame.K_KP4:    self.predict(4)
-                if event.key==pygame.K_5 or event.key==pygame.K_KP5:    self.predict(5)
-                if event.key==pygame.K_6 or event.key==pygame.K_KP6:    self.predict(6)
-                if event.key==pygame.K_7 or event.key==pygame.K_KP7:    self.predict(7)
-                if event.key==pygame.K_8 or event.key==pygame.K_KP8:    self.predict(8)
-                if event.key==pygame.K_9 or event.key==pygame.K_KP9:    self.predict(9)
-                if event.key==pygame.K_DELETE or event.key==pygame.K_BACKSPACE:
-                    try:
-                        self.predicted.remove(self.predicted[-1])
-                    except:
-                        pass
-                    self.set_number(0)
-                if event.key==pygame.K_RETURN or event.key==pygame.K_KP_ENTER:
-                    if len(self.predicted)  ==  1:
-                        self.set_number(self.predicted[0])
-                        self.predicted=[]
+        pressed = pygame.key.get_pressed()
+
+        if pressed[pygame.K_1] or pressed[pygame.K_KP1]:    self.predict(1)
+        if pressed[pygame.K_2] or pressed[pygame.K_KP2]:    self.predict(2)
+        if pressed[pygame.K_3] or pressed[pygame.K_KP3]:    self.predict(3)
+        if pressed[pygame.K_4] or pressed[pygame.K_KP4]:    self.predict(4)
+        if pressed[pygame.K_5] or pressed[pygame.K_KP5]:    self.predict(5)
+        if pressed[pygame.K_6] or pressed[pygame.K_KP6]:    self.predict(6)
+        if pressed[pygame.K_7] or pressed[pygame.K_KP7]:    self.predict(7)
+        if pressed[pygame.K_8] or pressed[pygame.K_KP8]:    self.predict(8)
+        if pressed[pygame.K_9] or pressed[pygame.K_KP9]:    self.predict(9)
+        if pressed[pygame.K_DELETE] or pressed[pygame.K_BACKSPACE]:
+            try:
+                self.predicted.remove(self.predicted[-1])
+            except:
+                pass
+            self.set_number(0)
+        if pressed[pygame.K_RETURN] or pressed[pygame.K_KP_ENTER]:
+            if len(self.predicted)  ==  1:
+                self.set_number(self.predicted[0])
+                self.predicted=[]
 
         self.parent.check_for_win()
 
@@ -289,8 +286,7 @@ class Cell(object):
         if self.value == 0:
             if number not in self.predicted:
                 self.predicted.append(number)
-            else:
-                self.predicted.remove(number)
+
 
 # Draw Once
 game            =   Game(config)
@@ -312,8 +308,8 @@ while game.running:
     #Update view
     pygame.display.update()
 
-    #Limit framerate to 30 fps.
-    game.clock.tick(30)
+    #Limit framerate to 15 fps.
+    game.clock.tick(15)
 
     #Handle quitting the game
     for event in pygame.event.get():
