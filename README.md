@@ -6,7 +6,7 @@ The code within this repository is golden if you want to see my style of coding 
 Each folder will have its own readme with instructions to run the program.
 
 ## CLI
-- [x] Python
+- [ ] Python
 - [x] C++
 - [ ] Javascript
 - [ ] Java
