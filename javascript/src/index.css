@@ -1,0 +1,43 @@
+:root {
+  --main-bg-color: #c6c1b9;
+  --secondary-bg-color: #ddd7ce;
+  --accent-color: #00b7c1;
+  --text-color: #333333;
+}
+
+[data-theme="dark"] {
+  --main-bg-color: #222831;
+  --secondary-bg-color: #393e46;
+  --accent-color: #01d5e1;
+  --text-color: #eeeeee;
+}
+
+#dark-mode {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 50px;
+  height: 50px;
+  background-color: var(--text-color);
+  border-radius: 100%;
+  box-shadow: 0px 0px 10px var(--text-color);
+  cursor: pointer;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
+    "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--main-bg-color);
+}
+
+#sudoku {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
